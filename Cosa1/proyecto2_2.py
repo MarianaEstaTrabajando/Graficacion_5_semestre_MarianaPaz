@@ -27,9 +27,7 @@ def init_glfw():
     if not glfw.init():
         raise Exception("No se pudo inicializar GLFW")
     
-    # No especificar version de OpenGL - usar la mejor disponible compatible
-    # con fixed-function pipeline (glBegin/glEnd, GL_LIGHTING, etc.)
-    
+ # Crear ventana GLFW
     window = glfw.create_window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, None, None)
     
     if not window:
@@ -44,6 +42,8 @@ def init_glfw():
 # ============================================================
 # Configuracion inicial de OpenGL
 # ============================================================
+
+# Ajustes iniciales de OpenGL
 def setup_opengl():
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glEnable(GL_DEPTH_TEST)
@@ -129,7 +129,13 @@ def draw_line(p1, p2, color=(1, 1, 1), width=2.0):
 #     finally:
 #         glPopMatrix()
 
+
+
+#El paraboloide pasado quedaba como un cono, así que use este que funciona mucho mejor y sí tiene la forma del pou
+#Se usará para el cuerpo y la boca
+
 def draw_paraboloide(h, k, w, altura=1.0, radio_max=1.0, pasos_r=80, pasos_ang=80,color=(1,1,1)):
+    
     glPushMatrix()
     try:
         glTranslatef(h, k, w)
@@ -167,11 +173,13 @@ def draw_paraboloide(h, k, w, altura=1.0, radio_max=1.0, pasos_r=80, pasos_ang=8
 
 
 def draw_parpado(x,y,z,radius,inicio, cerrado, color=(1,1,1), slices=30, stacks=30):
+    #Utilizando la función de dibujar esfera del código del ojo, aproveché que funcionaba con rebanadas para hacer el parpado
     """Dibuja una esfera usando primitivas OpenGL (sin GLUT)"""
     glPushMatrix()
     glTranslatef(x, y, z)
     glColor3f(*color)
     quad = gluNewQuadric()
+    #Dependiendo de los valores de inicio y cerrado, se dibuja el parpado
     for i in range(inicio,stacks-cerrado):
         lat1 = math.pi * (-0.5 + i / stacks)
         lat2 = math.pi * (-0.5 + (i + 1) / stacks)
@@ -326,12 +334,14 @@ def render_3d_mask_extended(face_landmarks):
     # Parpados
     # ============================================================
     
-    #Movimiento puntos
+    #Movimiento puntos del parpado como tal:
     left_eye_p1 = lm[386]
     left_eye_p2 = lm[374]
     
     right_eye_p1 = lm[159]
     right_eye_p2 = lm[145]
+    
+    
     
     lx1p, ly1p, lz1p = norm_landmark(left_eye_p1)
     lx2p, ly2p, lz2p = norm_landmark(left_eye_p2)
@@ -340,7 +350,7 @@ def render_3d_mask_extended(face_landmarks):
     rx2p, ry2p, rz2p = norm_landmark(right_eye_p2)
     
     
-    #Posición puntos
+    #Posición de la parte blanca para calcular el radio del parpado
     lx1,ly1,lz1= norm_landmark(lm[133])
     lx2,ly2,lz2= norm_landmark(lm[33])
     
@@ -354,17 +364,21 @@ def render_3d_mask_extended(face_landmarks):
     lx, ly, lz = ((lx1+lx2)/2),((ly1+ly2)/2),((lz1+lz2)/2)
     rx, ry, rz = ((rx1+rx2)/2), ((ry1+ry2)/2), ((rz1+rz2)/2)
     
-    #Posición para puntos del parpado
+    #Posición puntos de los lagrimales para poder medir las distancias de los ojos y redimensionar, usé esto para comparar esta distancia 
+    #que no cambia con la de los parapados que pues sí cambia al parpadear
     lx1,ly1,lz1= norm_landmark(lm[107])
     lx2,ly2,lz2= norm_landmark(lm[46])
     
     rx1,ry1,rz1= norm_landmark(lm[336])
     rx2,ry2,rz2= norm_landmark(lm[276])
     
-    #Parpadeo
+    #Parpadeo, aquí se calcula la distancia de los lagrimales
     distancia_parpadol=abs(ly2-ly1)
     distancia_parpador=abs(ry2-ry1)
     
+    
+    #Aquí se usa la distancia de los lagrimales para calcular el valor del parpadeo ya que este va por rebanadas su valor máximo es 30
+    #Pero usé 30 originalmente y pues no quedó bien xd así que lo fui cambiando
     valorl= int(abs(ly2p-ly1p)*45/distancia_parpadol)
     valorr= int(abs(ry2p-ry1p)*45/distancia_parpador)
     
@@ -422,13 +436,17 @@ def render_3d_mask_extended(face_landmarks):
      # ============================================================
     # 7. Cuerpo
     # ============================================================
+    
+    #Estas distancias fueron variando mucho hasta que quedó bien
     forehead = lm[10]
     chin = lm[152]
     
     fx, fy, fz = norm_landmark(forehead)
     cx, cy, cz = norm_landmark(chin)
     
+    #Este valor toma en cuenta a los ojos ya que el cuerpo debe estar atrás de ellos y antes no quedaba bien 
     distancia_cuerpo_z=distancia_cuerpo_z- (abs(cy - fy) *0.8)
+    
     # Punto en la frente (color suave)
     draw_paraboloide(fx,fy,distancia_cuerpo_z,5*abs(cy-fy)/9,0.8*abs(cy-fy),80,80,(0.54, 0.36, 0.23))
     
